@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Shotboard 片板 · 一键收藏",
+  "version": "0.2.2",
+  "description": "看小红书 / Pinterest 时，一键把整篇笔记的图片存进你本地的 Shotboard 片板样片库。",
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": { "default_popup": "popup.html", "default_title": "Shotboard 片板" },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["contextMenus", "storage", "scripting"],
+  "host_permissions": [
+    "*://*.xiaohongshu.com/*",
+    "*://*.xhscdn.com/*",
+    "*://*.pinterest.com/*",
+    "*://*.pinimg.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.xiaohongshu.com/*", "*://*.pinterest.com/*", "*://*.pinterest.com.au/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

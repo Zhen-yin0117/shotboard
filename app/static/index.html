@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shotboard 片板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='7' width='26' height='19' rx='3' fill='%23161412'/><circle cx='16' cy='16.5' r='6' fill='none' stroke='%23e8643c' stroke-width='2.5'/><rect x='10' y='4' width='8' height='4' rx='1' fill='%23161412'/></svg>">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="icon-btn only-mobile" id="toggleSidebar" aria-label="筛选">☰</button>
+  <div class="brand"><span class="brand-mark"></span>Shotboard<span class="brand-zh">片板</span></div>
+  <nav class="tabs" id="tabs">
+    <a href="#/" data-view="library">样片库</a>
+    <a href="#/plans" data-view="plans">拍摄方案</a>
+  </nav>
+  <div class="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+    <input id="search" type="search" placeholder="搜索描述、标签、备注…  例如：逆光 白裙">
+  </div>
+  <div class="top-actions">
+    <div class="queue-pill" id="queuePill" hidden></div>
+    <select id="sort" title="排序">
+      <option value="new">最新导入</option>
+      <option value="old">最早导入</option>
+      <option value="random">随机浏览</option>
+    </select>
+    <button class="btn primary" id="importBtn">＋ 导入样片</button>
+    <button class="icon-btn" id="settingsBtn" aria-label="设置" title="设置">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </div>
+  <input type="file" id="fileInput" multiple accept="image/*,.heic,.heif" hidden>
+  <input type="file" id="folderInput" webkitdirectory hidden>
+</header>
+
+<div class="layout" id="viewLibrary">
+  <aside class="sidebar" id="sidebar">
+    <nav class="quick" id="quick"></nav>
+    <div class="facets" id="facets"></div>
+  </aside>
+
+  <main class="main">
+    <div class="filterbar" id="filterbar" hidden></div>
+    <div class="meta-row">
+      <div class="result-meta" id="resultMeta"></div>
+      <button class="btn small" id="selectBtn">批量选择</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="sentinel" id="sentinel"></div>
+    <div class="empty" id="empty" hidden>
+      <div class="empty-frame">
+        <div class="empty-icon">⌗</div>
+        <h2>把样片拖进来</h2>
+        <p>支持 JPG / PNG / WebP / HEIC，可以一次拖一整个文件夹。<br>导入后会自动用通义千问按景别、构图、布光等维度打标签。</p>
+        <div class="empty-actions">
+          <button class="btn primary" data-act="pick-files">选择图片</button>
+          <button class="btn" data-act="pick-folder">选择文件夹</button>
+        </div>
+        <p class="muted small" id="emptyKeyHint" hidden>还没有设置 API Key —— <a href="#" data-act="open-settings">去设置</a>，否则只能导入，不能自动打标。</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 拍摄方案 -->
+<div class="plans-view" id="viewPlans" hidden></div>
+
+<!-- 批量选择底栏 -->
+<div class="selbar" id="selbar" hidden></div>
+
+<!-- 选择方案 -->
+<div class="modal" id="planPicker" hidden><div class="dialog" id="planPickerBody"></div></div>
+
+<!-- 导出 -->
+<div class="modal" id="exportDlg" hidden><div class="dialog" id="exportBody"></div></div>
+<div id="exportSheet" class="export-sheet" aria-hidden="true"></div>
+
+<!-- 拖拽遮罩 -->
+<div class="drop-overlay" id="dropOverlay" hidden><div>松手导入样片</div></div>
+
+<!-- 导入菜单 -->
+<div class="menu" id="importMenu" hidden>
+  <button data-act="pick-files">选择图片…</button>
+  <button data-act="pick-folder">选择整个文件夹…</button>
+  <button data-act="import-url">从图片链接导入…</button>
+</div>
+
+<!-- 详情 -->
+<div class="modal detail" id="detail" hidden>
+  <div class="detail-shell">
+    <div class="detail-photo">
+      <img id="detailImg" alt="">
+      <button class="nav prev" data-act="prev" aria-label="上一张">‹</button>
+      <button class="nav next" data-act="next" aria-label="下一张">›</button>
+    </div>
+    <div class="detail-panel" id="detailPanel"></div>
+    <button class="icon-btn close" data-act="close-detail" aria-label="关闭">✕</button>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="modal" id="settings" hidden>
+  <form class="dialog" id="settingsForm">
+    <h3>设置</h3>
+    <label class="field">
+      <span>通义千问 API Key</span>
+      <input name="api_key" type="password" placeholder="sk-…" autocomplete="off">
+      <small>在 <a href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener">阿里云百炼控制台</a> → API Key 页面创建。只保存在你自己电脑上。</small>
+    </label>
+    <label class="field">
+      <span>账号所在地区</span>
+      <select name="region">
+        <option value="cn">中国内地（北京）— 用阿里云国内账号注册的选这个</option>
+        <option value="intl">国际（新加坡）— 用 Alibaba Cloud 国际站注册的选这个</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>模型</span>
+      <select name="model">
+        <option value="qwen3-vl-plus">qwen3-vl-plus（推荐，判断更准）</option>
+        <option value="qwen3-vl-flash">qwen3-vl-flash（更快更便宜）</option>
+        <option value="qwen-vl-max">qwen-vl-max（旧版）</option>
+      </select>
+    </label>
+    <label class="check">
+      <input type="checkbox" name="auto_tag"> 导入后自动打标签
+    </label>
+    <div class="test-row">
+      <button type="button" class="btn" id="testBtn">测试连接</button>
+      <span id="testResult" class="small"></span>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-act="close-settings">取消</button>
+      <button type="submit" class="btn primary">保存</button>
+    </div>
+  </form>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script src="/static/figures.js"></script>
+<script src="/static/app.js"></script>
+<script src="/static/plans.js"></script>
+</body>
+</html>

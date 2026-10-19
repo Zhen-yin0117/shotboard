@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; width: 290px; background: #191816; color: #ece7e0; font: 13px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+  .wrap { padding: 16px; display: grid; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 15px; }
+  .brand i { width: 10px; height: 10px; border-radius: 50%; background: #e8643c; box-shadow: 0 0 10px #e8643c; }
+  .status { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 9px; background: #22201d; }
+  .status b { width: 8px; height: 8px; border-radius: 50%; background: #6f6a63; flex: none; }
+  .status.ok b { background: #7fb37a; } .status.bad b { background: #e0605a; }
+  .btn { height: 34px; border-radius: 8px; border: 0; background: #e8643c; color: #1a0d07; font-weight: 700; cursor: pointer; font-size: 13px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .how { color: #a39d94; font-size: 12px; }
+  .how ol { margin: 4px 0 0; padding-left: 18px; }
+  details { color: #a39d94; font-size: 12px; }
+  summary { cursor: pointer; }
+  .row { display: flex; gap: 6px; margin-top: 8px; }
+  input { flex: 1; min-width: 0; background: #121110; border: 1px solid #3b3833; color: #ece7e0; border-radius: 7px; padding: 6px 8px; font: inherit; }
+  .small { height: 30px; padding: 0 10px; background: #2b2824; color: #ece7e0; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><i></i>Shotboard 片板</div>
+  <div class="status" id="status"><b></b><span id="statusText">检查中…</span></div>
+  <button class="btn" id="open" disabled>打开片板</button>
+  <div class="how">
+    怎么用：
+    <ol>
+      <li>打开一篇小红书笔记或 Pinterest Pin</li>
+      <li>点右下角「存入片板」，勾选想要的图，保存</li>
+      <li>其他网站：在图片上右键 →「存到 Shotboard 片板」</li>
+    </ol>
+  </div>
+  <details>
+    <summary>高级设置</summary>
+    <div class="row"><input id="server" placeholder="http://127.0.0.1:8765"><button class="btn small" id="saveServer">保存</button></div>
+  </details>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>
