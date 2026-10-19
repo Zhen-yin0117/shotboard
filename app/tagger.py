@@ -133,6 +133,10 @@ class AccountError(RuntimeError):
     """账号层面的问题（欠费、Key 错误等）：换哪张图都会失败，需要暂停队列。"""
 
 
+class TransientError(RuntimeError):
+    """临时性问题（超时、限流、服务端 5xx）：等一会儿自动重试。"""
+
+
 # (匹配关键词, 中文说明, 是否账号级问题)
 ERROR_RULES = [
     (("Arrearage", "overdue-payment"),
@@ -148,7 +152,7 @@ ERROR_RULES = [
     (("DataInspectionFailed", "inappropriate content", "data_inspection"),
      "这张图被阿里云的内容审核拦截了（常见于泳装、贴身服装类图片），无法自动打标，可以手动加标签。", False),
     (("Throttling", "rate limit", "RateLimit", "TooManyRequests"),
-     "请求太频繁被限流了，稍后点「重试」即可。", False),
+     "请求太频繁被限流了，稍后点「重试」即可。", "transient"),
     (("InvalidParameter", "download the media", "image format", "image size"),
      "图片格式或尺寸不被接受，可以手动加标签。", False),
 ]
@@ -160,8 +164,10 @@ def friendly_error(status, raw: str):
             return msg, account
     if status in (401, 403):
         return f"阿里云拒绝了请求（{status}）。请检查 API Key 和账号地区设置。", True
+    if status == 429:
+        return "请求太频繁被限流了，稍后点「重试」即可。", "transient"
     if status and status >= 500:
-        return f"阿里云服务暂时出错（{status}），稍后重试。", False
+        return f"阿里云服务暂时出错（{status}），稍后重试。", "transient"
     return f"调用失败（{status}）：{raw[:200]}", False
 
 
@@ -171,15 +177,15 @@ def raise_api_error(r):
         raw = f"{err.get('code', '')} {err.get('type', '')} {err.get('message', '')}"
     except Exception:
         raw = r.text
-    msg, account = friendly_error(r.status_code, raw)
-    raise (AccountError if account else RuntimeError)(msg)
+    msg, kind = friendly_error(r.status_code, raw)
+    raise (TransientError if kind == "transient" else AccountError if kind else RuntimeError)(msg)
 
 
 def post(url, body, cfg, timeout):
     try:
         return httpx.post(url, json=body, headers={"Authorization": f"Bearer {cfg['api_key']}"}, timeout=timeout)
     except httpx.TimeoutException:
-        raise RuntimeError("阿里云响应超时，稍后重试。")
+        raise TransientError("阿里云响应超时（自动试了 3 次）。可能是阿里云这会儿比较忙，稍后点「重试」；经常出现的话，可以在设置里换成更快的 qwen3-vl-flash。")
     except httpx.HTTPError:
         raise AccountError("连不上阿里云服务器。请检查网络；如果开了代理/VPN，试试关掉或切换地区设置。")
 
@@ -199,6 +205,7 @@ def call_model(image_path: Path, tax, cfg):
     body = {
         "model": cfg["model"],
         "temperature": 0.2,
+        "max_tokens": 2000,  # 正常输出约 500 token，防止模型啰嗦拖慢
         "messages": [{
             "role": "user",
             "content": [
@@ -207,9 +214,18 @@ def call_model(image_path: Path, tax, cfg):
             ],
         }],
     }
-    r = post(url, body, cfg, 120)
-    if r.status_code != 200:
-        raise_api_error(r)
+    # 超时、限流、5xx 属于临时问题：间隔 5 秒、20 秒自动重试，一共试 3 次
+    timeout = httpx.Timeout(180, connect=15)
+    for attempt, wait in enumerate((5, 20, None)):
+        try:
+            r = post(url, body, cfg, timeout)
+            if r.status_code != 200:
+                raise_api_error(r)
+            break
+        except TransientError:
+            if wait is None:
+                raise
+            time.sleep(wait)
     content = r.json()["choices"][0]["message"]["content"]
     if isinstance(content, list):  # 个别模型返回分段内容
         content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
